@@ -1,188 +1,124 @@
-# Sunrise Supermarket — PLSQL Assignment One
+# Sunrise Supermarket - PLSQL Assignment One
 
-**Name:** Shema Axel
-**Student ID:** 29273
-**DBMS used:** Oracle 21c XE (via SQL*Plus, PDB: `XEPDB1`)
+Name: Shema Axel
+Student ID: 29273
+DBMS: Oracle 21c XE (SQL*Plus, PDB XEPDB1)
 
-## What this is
+## what i did
 
-This is my take on the Sunrise Supermarket assignment — a small relational schema (customers, products, orders, order_items) with enough sample data to actually see patterns when you run joins, a CTE, and some window functions on it. Honestly had fun putting this together once I got Oracle behaving (more on that below 👇). The business scenario: Sunrise Supermarket wants to know who their customers are, what they're buying, and how sales move over time — so every query here is built to answer one of those questions directly.
+basically built out the sunrise supermarket schema they gave us (customers, products, orders, order_items) and filled it with made up data - 6 customers, 8 products in 3 categories, 15 orders, 25 order items spread over june-july 2026. then wrote the join/cte/window queries they asked for and actually ran them to see what comes out.
 
-## How to run it
+## how to run
 
-1. Get an Oracle instance up (I used 21c XE) and connect to your pluggable database, e.g.:
-   ```
-   sqlplus / as sysdba
-   ALTER SESSION SET CONTAINER = XEPDB1;
-   ```
-2. Run the scripts in order — they build on each other:
-   ```
-   @01_create_tables.sql
-   @02_insert_data.sql
-   @03_join_queries.sql
-   @04_cte_query.sql
-   @05_window_queries.sql
-   ```
-3. Each query prints straight to console. If you want them logged to a file, wrap the session with `SPOOL output.txt` before running the query scripts.
+connect to oracle and switch into the pdb first:
+sqlplus / as sysdba
+ALTER SESSION SET CONTAINER = XEPDB1;
 
-This should work on PostgreSQL, MySQL, or SQL Server too with minor syntax tweaks (mainly the `VARCHAR2`/`NUMBER` types and the `DATE '2026-06-02'` literal syntax, which are Oracle-specific).
+then just run the files in order, they depend on each other:
+@01_create_tables.sql
+@02_insert_data.sql
+@03_join_queries.sql
+@04_cte_query.sql
+@05_window_queries.sql
 
-## Business scenario
+should work on postgres/mysql too if you swap out the VARCHAR2/NUMBER types and the DATE '2026-06-02' syntax, that part is oracle specific.
 
-Sunrise Supermarket sells groceries, dairy, and household products to a small set of customers who place multiple orders over time. Management's questions boil down to: **who's buying, what are they buying, and is revenue trending up?** The schema has 6 customers, 8 products across 3 categories (Grocery, Dairy, Household), 15 orders, and 25 order line items spread across June–July 2026.
+## the scenario
 
-## Schema
+sunrise supermarket sells groceries/dairy/household stuff and management wants to know who's actually buying, what they buy, and if sales are going anywhere over time. thats basically what every query below is trying to answer.
 
-```
-customers (customer_id PK, customer_name, email, city)
-products  (product_id PK, product_name, category, price)
-orders    (order_id PK, customer_id FK, order_date)
-order_items (order_item_id PK, order_id FK, product_id FK, quantity)
-```
+customers table has who they are, products has what they sell, orders is when someone placed an order, order_items is the actual line items in that order.
 
 ---
 
-## JOIN queries (`03_join_queries.sql`)
+## join queries (03_join_queries.sql)
 
-### 1. Orders with customer name, city, and order date (INNER JOIN)
-```sql
-SELECT o.order_id, c.customer_name, c.city, o.order_date
-FROM orders o
-INNER JOIN customers c ON o.customer_id = c.customer_id
-ORDER BY o.order_date;
-```
-**Why:** basic INNER JOIN — every order definitely has a customer attached, so this just flattens the two tables into one readable view, sorted chronologically.
+### 1 - orders with customer name/city/date, inner join
+SELECT o.order_id, c.customer_name, c.city, o.order_date FROM orders o INNER JOIN customers c ON o.customer_id = c.customer_id ORDER BY o.order_date;
 
-**Result (first few rows):**
-| order_id | customer_name | city | order_date |
-|---|---|---|---|
-| 1 | Nathan Drake | Kigali | 2026-06-02 |
-| 2 | Ellie Williams | Musanze | 2026-06-03 |
-| 3 | Nathan Drake | Kigali | 2026-06-10 |
-| 4 | Geralt Rivia | Kigali | 2026-06-12 |
-| 5 | Lara Croft | Huye | 2026-06-15 |
+pretty standard inner join, every order has a customer so nothing gets lost. just wanted it sorted by date so you can see the order of things.
 
-*(full 15-row result in the actual run — truncated here for readability)*
+first few rows look like:
+order_id 1 -> Nathan Drake, Denver, 2026-06-02
+order_id 2 -> Ellie Williams, Toronto, 2026-06-03
+order_id 3 -> Nathan Drake, Denver, 2026-06-10
+order_id 4 -> Geralt Rivia, Denver, 2026-06-12
 
-**Business read:** Nathan Drake is clearly a repeat shopper (4 orders across the two months), and orders are fairly evenly spread through June and July rather than clustered — decent sign of steady foot traffic.
+(15 rows total, didn't paste all of them here)
 
-### 2. Order items with product name, category, price, quantity, and line total
-```sql
-SELECT oi.order_item_id, oi.order_id, p.product_name, p.category, p.price, oi.quantity,
-       (p.price * oi.quantity) AS line_total
-FROM order_items oi
-JOIN products p ON oi.product_id = p.product_id
-ORDER BY oi.order_id;
-```
-**Why:** this is the "what exactly did they buy" view — joining line items to the product catalog and computing the line total inline instead of doing that math in the app layer.
+what it tells us: Nathan orders a lot (4 times in 2 months) so hes basically a repeat customer, and the orders are spread pretty evenly across the two months not bunched up.
 
-**Business read:** Rice 5kg and Cooking Oil 2L show up a lot and drive some of the biggest line totals (e.g. 3× Rice on order 8 = 37.50), so Grocery items are pulling more revenue per line than the cheaper Dairy items even though Dairy has more individual transactions.
+### 2 - order items with product info + line total
+SELECT oi.order_item_id, oi.order_id, p.product_name, p.category, p.price, oi.quantity, (p.price * oi.quantity) AS line_total FROM order_items oi JOIN products p ON oi.product_id = p.product_id ORDER BY oi.order_id;
 
-### 3. All customers with their orders, including customers with none (LEFT JOIN)
-```sql
-SELECT c.customer_id, c.customer_name, o.order_id, o.order_date
-FROM customers c
-LEFT JOIN orders o ON c.customer_id = o.customer_id
-ORDER BY c.customer_id;
-```
-**Why:** LEFT JOIN so nobody gets dropped — this is the query that actually surfaces customers who haven't ordered anything yet.
+this one joins the line items to products so you can see what was actually bought and how much that line cost, did the multiplication right in the query instead of after.
 
-**Result:**
-| customer_id | customer_name | order_id | order_date |
-|---|---|---|---|
-| 1 | Nathan Drake | 1, 3, 6, 11 | (4 rows) |
-| 2 | Ellie Williams | 2, 9, 14 | (3 rows) |
-| 3 | Geralt Rivia | 4, 8, 13 | (3 rows) |
-| 4 | Lara Croft | 5, 10, 15 | (3 rows) |
-| 5 | Kratos Olympus | 7, 12 | (2 rows) |
-| 6 | Aloy Sobeck | NULL | NULL |
+what it tells us: rice and cooking oil show up a lot and have some of the highest line totals (order 8 has 3x rice = 37.50) so grocery stuff is bringing in more per line even tho dairy items get ordered more often individually.
 
-**Business read:** Aloy Sobeck is in the customer table but has never placed an order — a clean example of a lapsed/never-activated customer that Sunrise could target with a welcome promo.
+### 3 - all customers incl ones with no orders, left join
+SELECT c.customer_id, c.customer_name, o.order_id, o.order_date FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id ORDER BY c.customer_id;
+
+left join so nobody gets dropped, this is the one that actually shows you who hasn't ordered anything.
+
+result: customer 6, Aloy Sobeck, shows up with NULL for order_id and order_date - meaning she's in the system but never bought anything. everyone else (1-5) has orders attached.
+
+what it tells us: Aloy could be someone to target with like a first order discount or something since she's registered but never checked out.
 
 ---
 
-## CTE query (`04_cte_query.sql`)
+## cte query (04_cte_query.sql)
 
-### Customers whose total spend is above average
-```sql
-WITH customer_totals AS (
-    SELECT c.customer_id, c.customer_name, SUM(oi.quantity * p.price) AS total_spend
-    FROM customers c
-    JOIN orders o ON c.customer_id = o.customer_id
-    JOIN order_items oi ON o.order_id = oi.order_id
-    JOIN products p ON oi.product_id = p.product_id
-    GROUP BY c.customer_id, c.customer_name
-)
-SELECT customer_id, customer_name, total_spend
-FROM customer_totals
-WHERE total_spend > (SELECT AVG(total_spend) FROM customer_totals)
-ORDER BY total_spend DESC;
-```
-**Why a CTE:** I needed the per-customer total twice — once to compare against, once to filter by — so computing it once in `customer_totals` and reusing it beats repeating the whole join-and-aggregate logic in a subquery.
+### customers spending above the average
+WITH customer_totals AS (SELECT c.customer_id, c.customer_name, SUM(oi.quantity * p.price) AS total_spend FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_items oi ON o.order_id = oi.order_id JOIN products p ON oi.product_id = p.product_id GROUP BY c.customer_id, c.customer_name) SELECT customer_id, customer_name, total_spend FROM customer_totals WHERE total_spend > (SELECT AVG(total_spend) FROM customer_totals) ORDER BY total_spend DESC;
 
-**Result:**
-| customer_id | customer_name | total_spend |
-|---|---|---|
-| 1 | Nathan Drake | 86.40 |
-| 3 | Geralt Rivia | 70.60 |
-| 2 | Ellie Williams | 56.00 |
+used a CTE here because i needed the customer totals twice, once to get the average and once to actually filter against it. easier than writing that whole join+groupby again as a nested subquery.
 
-Average spend across the 5 customers who've ordered anything comes out to **53.28**, so these three clear the bar (Lara Croft at 30.60 and Kratos Olympus at 22.80 fall below it).
+result:
+Nathan Drake - 86.40
+Geralt Rivia - 70.60
+Ellie Williams - 56.00
 
-**Business read:** Nathan, Geralt, and Ellie are the top-tier spenders — worth a loyalty program or personalized offers, since they're already almost 63% of total revenue between the three of them.
+average across the 5 customers who've actually ordered something comes out to 53.28, so these 3 are above it (Lara at 30.60 and Kratos at 22.80 are below).
+
+what it tells us: these three are basically the top spenders, might be worth giving them some kind of loyalty perk since together they're already most of the revenue.
 
 ---
 
-## Window-function queries (`05_window_queries.sql`)
+## window function queries (05_window_queries.sql)
 
-### 1. Rank customers by total spend
-```sql
+### 1 - rank customers by total spend
 ... RANK() OVER (ORDER BY total_spend DESC) AS spend_rank ...
-```
-**Result:**
-| rank | customer | total_spend |
-|---|---|---|
-| 1 | Nathan Drake | 86.40 |
-| 2 | Geralt Rivia | 70.60 |
-| 3 | Ellie Williams | 56.00 |
-| 4 | Lara Croft | 30.60 |
-| 5 | Kratos Olympus | 22.80 |
 
-**Business read:** basically a leaderboard — useful for deciding who gets the first invite to a VIP program.
+gives you a leaderboard basically:
+1. Nathan Drake - 86.40
+2. Geralt Rivia - 70.60
+3. Ellie Williams - 56.00
+4. Lara Croft - 30.60
+5. Kratos Olympus - 22.80
 
-### 2. Number each customer's orders in the order placed
-```sql
+### 2 - number each customers orders in order placed
 ... ROW_NUMBER() OVER (PARTITION BY o.customer_id ORDER BY o.order_date) AS order_sequence ...
-```
-**Business read:** this tells you, e.g., that Nathan Drake's 4th-ever order was on 2026-07-08 — handy for spotting "which visit was this" without eyeballing dates, and useful groundwork for cohort/retention analysis later.
 
-### 3. Running total of revenue over time
-```sql
+so like this tells you Nathan's 4th order ever was on 2026-07-08, useful if you wanna know "which visit is this" without doing date math in your head.
+
+### 3 - running total of revenue over time
 ... SUM(order_total) OVER (ORDER BY order_date, order_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total ...
-```
-**Result (tail end):**
-| order_date | order_total | running_total |
-|---|---|---|
-| 2026-07-10 | 6.00 | 243.00 |
-| 2026-07-15 | 6.60 | 249.60 |
-| 2026-07-18 | 16.80 | 266.40 |
 
-(Order 15 doesn't show up here since it has no line items yet — makes sense, no revenue to attribute.)
+by the end of the dataset (2026-07-18) running total hits 266.40 which is the full revenue for the period. order 15 doesn't show up in this one since it has no items attached yet so theres nothing to add.
 
-**Business read:** total revenue for the period lands at **266.40**, and the running total shows growth is fairly steady rather than one big order carrying the whole picture — good sign for consistency.
+what it tells us: revenue is climbing pretty steadily, not like one huge order carrying everything, which is a decent sign.
 
-### 4. Days since each customer's previous order
-```sql
+### 4 - days since each customers previous order
 ... order_date - LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS days_since_previous_order ...
-```
-**Business read:** this is the one I'd actually use for re-engagement — e.g. Ellie Williams went 28 days between her first and second order, which is a bigger gap than most others and could flag her as someone who needs a reminder nudge before she drifts off.
+
+this is probably the most useful one honestly - Ellie went 28 days between her first and second order which is the longest gap out of anyone, so she'd probably be the first person i'd send a "hey come back" reminder to.
 
 ---
 
-## Challenges & how I resolved them
+## challenges
 
-**Setup Note:** While installing Oracle 21c XE, the listener was pointing to a database home (`OraDB21Home1`) that was missing its `bin` folder, so `sqlplus` couldn't connect over the network — kept getting `ORA-12543 host unreachable`. I tried fiddling with firewall rules and testing different hostnames/IPs, but none of that helped because the real problem was the incomplete install, not the network at all.
+Setup Note: while installing Oracle 21c XE, the listener was pointing at a database home (OraDB21Home1) that turned out to be missing its bin folder, so sqlplus couldn't connect over the network - kept throwing ORA-12543 host unreachable at me. wasted a good while messing with firewall rules and trying different hostnames/IPs before realizing none of that was the actual issue, the install itself was just incomplete.
 
-Fixed it by connecting locally through the other, actually-working home (`dbhomeXE`) using the bequeath connection (`sqlplus / as sysdba`, no host/port needed), then switching into the `XEPDB1` container with `ALTER SESSION SET CONTAINER` before running any of the scripts. Lesson learned: when a "connection" error shows up, check that the install itself is actually complete before chasing network config.
+fixed it by connecting locally through the other home that actually worked (dbhomeXE) using the bequeath connection, so just sqlplus / as sysdba with no host or port, then switched into XEPDB1 with ALTER SESSION SET CONTAINER before running anything. took me embarrassingly long to figure out the error had nothing to do with the network.
 
-Aside from that, the trickiest part conceptually was making sure the CTE's average was computed correctly — since `customer_totals` only includes customers who've actually ordered something (INNER JOINs all the way down), the average is over 5 customers, not 6, which is exactly what we want for a meaningful "above average" comparison.
+other than that the annoying part was making sure the CTE average was actually calculated right - since customer_totals only includes people who've ordered something (all inner joins), the average is over 5 people not 6, which is what you actually want for this to mean anything.
