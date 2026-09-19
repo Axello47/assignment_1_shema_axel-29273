@@ -1,7 +1,9 @@
 # Sunrise Supermarket - PLSQL Assignment One
 
 Name: Shema Axel
+
 Student ID: 29273
+
 DBMS: Oracle 21c XE (SQL*Plus, PDB XEPDB1)
 
 ## what i did
