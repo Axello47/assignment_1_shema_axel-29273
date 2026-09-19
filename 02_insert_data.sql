@@ -1,11 +1,11 @@
 -- create inserted data with ai to save time
 
-INSERT INTO customers VALUES (1, 'Nathan Drake', 'ndrake@gmail.com', 'Kigali');
-INSERT INTO customers VALUES (2, 'Ellie Williams', 'ellie.w@gmail.com', 'Musanze');
-INSERT INTO customers VALUES (3, 'Geralt Rivia', 'geralt.r@gmail.com', 'Kigali');
-INSERT INTO customers VALUES (4, 'Lara Croft', 'lara.croft@gmail.com', 'Huye');
-INSERT INTO customers VALUES (5, 'Kratos Olympus', 'kratos.o@gmail.com', 'Rubavu');
-INSERT INTO customers VALUES (6, 'Aloy Sobeck', 'aloy.s@gmail.com', 'Kigali');
+INSERT INTO customers VALUES (1, 'Nathan Drake', 'ndrake@gmail.com', 'Denver');
+INSERT INTO customers VALUES (2, 'Ellie Williams', 'ellie.w@gmail.com', 'Toronto');
+INSERT INTO customers VALUES (3, 'Geralt Rivia', 'geralt.r@gmail.com', 'Denver');
+INSERT INTO customers VALUES (4, 'Lara Croft', 'lara.croft@gmail.com', 'Lisbon');
+INSERT INTO customers VALUES (5, 'Kratos Olympus', 'kratos.o@gmail.com', 'Osaka');
+INSERT INTO customers VALUES (6, 'Aloy Sobeck', 'aloy.s@gmail.com', 'Denver');
 
 INSERT INTO products VALUES (1, 'Rice 5kg', 'Grocery', 12.50);
 INSERT INTO products VALUES (2, 'Cooking Oil 2L', 'Grocery', 9.00);
